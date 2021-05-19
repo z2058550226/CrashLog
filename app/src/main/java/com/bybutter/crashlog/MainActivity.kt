@@ -16,22 +16,32 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import java.util.*
 
 class MainActivity : AppCompatActivity() {
-    private var mData = mutableListOf<DropBoxEntry>()
+    private val mData = mutableListOf<DropBoxEntry>()
+    private lateinit var stopRefresh: () -> Unit
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(RecyclerView(this).apply {
-            layoutManager = LinearLayoutManager(context)
-            adapter = mAdapter
-            addItemDecoration(object : RecyclerView.ItemDecoration() {
-                override fun getItemOffsets(outRect: Rect, view: View, parent: RecyclerView, state: RecyclerView.State) {
-                    outRect.bottom = 1f.dpInt
-                }
+        setContentView(SwipeRefreshLayout(this).apply {
+            addView(RecyclerView(context).apply {
+                layoutManager = LinearLayoutManager(context)
+                adapter = mAdapter
+                addItemDecoration(object : RecyclerView.ItemDecoration() {
+                    override fun getItemOffsets(outRect: Rect, view: View, parent: RecyclerView, state: RecyclerView.State) {
+                        outRect.bottom = 1f.dpInt
+                    }
+                })
             })
+            setOnRefreshListener(::refresh)
+            stopRefresh = { isRefreshing = false }
         })
+        refresh()
+    }
+
+    private fun refresh() {
         if (granted(Manifest.permission.PACKAGE_USAGE_STATS, Manifest.permission.READ_LOGS)) {
             mData.clear()
             mData += getEntries()
@@ -46,6 +56,7 @@ class MainActivity : AppCompatActivity() {
             clip("$cmd\n\n$cmd2")
             Toast.makeText(this, "use adb to grant permission, the command is copied", Toast.LENGTH_SHORT).show()
         }
+        stopRefresh()
     }
 
     private fun getEntries(): List<DropBoxEntry> {
